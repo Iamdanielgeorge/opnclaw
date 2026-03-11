@@ -1,66 +1,116 @@
-# ClaudeClaw
+# OpenClaw
 
-Personal AI assistant accessible via Telegram, powered by the Claude Agent SDK. Runs as a persistent service on your machine with a web dashboard for management.
+Personal AI assistant over Telegram. Supports Claude (via Agent SDK) and OpenAI (Codex 5.4, GPT-4o, etc.) as backends. Runs as a persistent service with a web dashboard.
 
-## Features
+## What it does
 
 - Telegram bot with session persistence and memory
-- Web dashboard with 9 tabs: Activity, Agents, Skills, Sessions, Tasks, Memories, Usage, Chat, System
-- Web chat interface (talk to your assistant from the browser)
-- Usage tracking (tokens, cost, duration per message)
-- Task scheduler with cron expressions
-- Voice message support (STT via Groq)
+- Swappable AI backend (Claude Agent SDK or OpenAI chat completions)
+- Web dashboard (Activity, Agents, Skills, Sessions, Tasks, Memories, Usage, Chat, System)
+- Browser-based chat interface
+- Usage tracking (tokens, cost, duration)
+- Cron-based task scheduler
+- Voice messages (STT via Groq)
 - Photo, document, and video handling
 - WhatsApp bridge
-- Multi-agent support with configurable system prompts and models
+- Multi-agent support with custom system prompts and models
 - Skills system (extensible via markdown files)
 
-## Prerequisites
+## Requirements
 
-- Node.js >= 20
-- Claude Code CLI installed and authenticated (`claude` command available)
+- Node.js 20+
+- One of the following AI backends:
+  - **Claude**: Claude Code CLI installed and authenticated (`claude` command available)
+  - **OpenAI**: An OpenAI API key with access to your desired model (e.g. Codex 5.4)
 - A Telegram bot token from [@BotFather](https://t.me/BotFather)
 
 ## Installation
 
+### 1. Clone and install
+
 ```bash
-git clone https://github.com/okenwa/claudeclaw.git
-cd claudeclaw
+git clone https://github.com/okenwa/openclaw.git
+cd openclaw
 npm install
 ```
 
-## Configuration
+### 2. Configure
 
-Run the setup wizard:
+You can use the setup wizard or do it manually.
+
+**Option A: Setup wizard**
 
 ```bash
 npm run setup
 ```
 
-Or manually copy and edit the env file:
+The wizard walks you through tokens, API keys, and optionally installs a background service (launchd on macOS, systemd on Linux, PM2 on Windows).
+
+**Option B: Manual**
 
 ```bash
 cp .env.example .env
 ```
 
-Required variables:
+Open `.env` and fill in your values.
+
+### 3. Environment variables
+
+**Required:**
 
 | Variable | Description |
 |----------|-------------|
-| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather |
-| `ALLOWED_CHAT_ID` | Your Telegram chat ID (comma-separated for multiple users) |
+| `TELEGRAM_BOT_TOKEN` | Bot token from [@BotFather](https://t.me/BotFather) |
+| `ALLOWED_CHAT_ID` | Your Telegram chat ID. Comma-separated for multiple users |
 
-Optional variables:
+**AI Provider (pick one):**
 
 | Variable | Description |
 |----------|-------------|
-| `GROQ_API_KEY` | Groq API key for voice transcription |
-| `GOOGLE_API_KEY` | Google API key for video analysis |
-| `DASHBOARD_PORT` | Dashboard port (default: 3333) |
-| `DASHBOARD_ENABLED` | Enable web dashboard (default: true) |
-| `LOG_LEVEL` | Logging level (default: info) |
+| `AI_PROVIDER` | `claude` (default) or `openai` |
 
-To get your chat ID, start the bot and send `/chatid`.
+**For Claude (default, no extra config needed beyond having the CLI authenticated):**
+
+The Claude Agent SDK uses your local `claude` CLI authentication. No API key in `.env` required.
+
+**For OpenAI:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAI_API_KEY` | -- | Your OpenAI API key (required) |
+| `OPENAI_MODEL` | `codex-5.4` | Model to use (e.g. `codex-5.4`, `gpt-4o`, `o3`) |
+| `OPENAI_MAX_TOKENS` | `4096` | Max tokens per response |
+
+**Optional:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GROQ_API_KEY` | -- | Groq API key for voice transcription |
+| `GOOGLE_API_KEY` | -- | Google API key for video analysis |
+| `DASHBOARD_ENABLED` | `true` | Enable web dashboard |
+| `DASHBOARD_PORT` | `3333` | Dashboard port |
+| `LOG_LEVEL` | `info` | trace, debug, info, warn, error, fatal |
+
+**Example `.env` for OpenAI Codex 5.4:**
+
+```env
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF
+ALLOWED_CHAT_ID=987654321
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
+OPENAI_MODEL=codex-5.4
+```
+
+**Example `.env` for Claude (default):**
+
+```env
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF
+ALLOWED_CHAT_ID=987654321
+```
+
+### 4. Get your chat ID
+
+Start the bot, then send `/chatid` to it in Telegram. Paste the number into `ALLOWED_CHAT_ID` in your `.env`.
 
 ## Running
 
@@ -70,7 +120,7 @@ To get your chat ID, start the bot and send `/chatid`.
 npm run dev
 ```
 
-This starts the Telegram bot, scheduler, and dashboard using `tsx` (no build step needed).
+Starts the Telegram bot, scheduler, and dashboard using `tsx`. No build step needed.
 
 ### Production
 
@@ -79,11 +129,56 @@ npm run build
 npm start
 ```
 
-The build step compiles TypeScript and builds the React dashboard.
+Compiles TypeScript and builds the React dashboard.
 
 ### Dashboard
 
 Once running, open http://localhost:3333 in your browser.
+
+## Running as a background service
+
+**macOS (launchd):**
+
+The setup wizard handles this, or manually create a plist in `~/Library/LaunchAgents/`.
+
+**Linux (systemd):**
+
+The setup wizard handles this, or manually create a unit in `~/.config/systemd/user/`.
+
+**Windows (PM2):**
+
+```bash
+npm install -g pm2
+npm run build
+pm2 start dist/index.js --name openclaw
+pm2 save
+pm2 startup
+```
+
+## Telegram commands
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Confirm bot is running |
+| `/chatid` | Show your chat ID |
+| `/newchat` | Clear session, start fresh |
+| `/forget` | Same as `/newchat` |
+| `/memory` | Show stored memories |
+| `/voice` | Toggle voice reply mode |
+| `/schedule` | Manage scheduled tasks |
+| `/wa` | WhatsApp bridge commands |
+
+### Scheduler commands
+
+```
+/schedule list                     -- list all tasks
+/schedule create "prompt" "cron"   -- create a scheduled task
+/schedule delete <id>              -- delete a task
+/schedule pause <id>               -- pause a task
+/schedule resume <id>              -- resume a task
+```
+
+Cron examples: `0 9 * * *` (daily 9am), `0 9 * * 1` (Monday 9am), `0 */4 * * *` (every 4 hours).
 
 ## Project structure
 
@@ -91,28 +186,29 @@ Once running, open http://localhost:3333 in your browser.
 src/
   index.ts              Entry point
   bot.ts                Telegram bot handlers
-  agent.ts              Claude Agent SDK wrapper
-  db.ts                 SQLite database (sessions, memories, usage, etc.)
+  agent.ts              AI provider (Claude + OpenAI)
+  config.ts             Environment config
+  db.ts                 SQLite (sessions, memories, usage, etc.)
   scheduler.ts          Cron-based task scheduler
   memory.ts             Memory system (semantic + episodic)
-  config.ts             Environment config
   voice.ts              Voice transcription (Groq)
   media.ts              Photo/document/video handling
   whatsapp.ts           WhatsApp bridge
   gmail.ts              Gmail integration
   team-router.ts        Multi-bot routing
+  orchestrator.ts       Bot orchestration
+  bot-coordinator.ts    Cross-bot communication
   dashboard/
-    server.ts           Express server + static file serving
+    server.ts           Express server + static files
     events.ts           SSE event bus
-    skills-scanner.ts   Scans ~/.claude/skills/ for skill files
+    skills-scanner.ts   Scans ~/.claude/skills/
     routes/             API route handlers
 dashboard/
   src/                  React + Vite frontend
-    tabs/               Tab components (Activity, Agents, Usage, Chat, etc.)
-    api.ts              Frontend API client
 scripts/
   setup.ts              Interactive setup wizard
-  notify.sh             Send notification from scheduled tasks
+  status.ts             System status check
+  notify.sh             Notification helper for scheduled tasks
 ```
 
 ## Scripts
@@ -129,26 +225,14 @@ scripts/
 
 ## Skills
 
-Skills live in `~/.claude/skills/` as markdown files. Each skill is a directory with a `SKILL.md` file containing YAML frontmatter (name, description) and instructions.
+Skills live in `~/.claude/skills/` as markdown files. Each skill is a directory with a `SKILL.md` containing YAML frontmatter (name, description) and instructions.
 
-Manage skills from the dashboard Skills tab or add them manually:
+Add them from the dashboard Skills tab or manually:
 
 ```bash
 mkdir -p ~/.claude/skills/my-skill
 # Create ~/.claude/skills/my-skill/SKILL.md with frontmatter
 ```
-
-## Telegram commands
-
-| Command | Description |
-|---------|-------------|
-| `/start` | Confirm bot is running |
-| `/chatid` | Show your chat ID |
-| `/newchat` | Clear session, start fresh |
-| `/memory` | Show stored memories |
-| `/voice` | Toggle voice reply mode |
-| `/schedule` | Manage scheduled tasks |
-| `/wa` | WhatsApp bridge commands |
 
 ## License
 
