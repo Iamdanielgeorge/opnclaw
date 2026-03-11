@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+store/
+workspace/
+*.log
+*.pid
+dashboard/node_modules/
+.claude/
+.history/
+*.docx
+*.html
+content/
+data/
+send-doc-email.cjs
+GBV_ICT_Platform_Research.md
+EcoClean-Marketing-Plan.cjs
